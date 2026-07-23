@@ -81,6 +81,10 @@ function limparEOcultarColuna(ws, coluna) {
   if (!ws["!cols"]) ws["!cols"] = [];
   ws["!cols"][coluna] = { ...(ws["!cols"][coluna] || {}), hidden: true };
 }
+function ocultarColuna(ws, coluna) {
+  if (!ws["!cols"]) ws["!cols"] = [];
+  ws["!cols"][coluna] = { ...(ws["!cols"][coluna] || {}), hidden: true };
+}
 function preencher(ws, r, ate, cor) { for (let c = 0; c <= ate; c++) { const x = cell(ws,r,c) || (ws[XLSX.utils.encode_cell({r,c})] = {t:"s",v:""}); x.s = {...(x.s||{}), fill:{patternType:"solid",fgColor:{rgb:cor}}}; } }
 
 function processar(wb) {
@@ -101,6 +105,8 @@ function processar(wb) {
   limparEOcultarColuna(corh, 16);
   set(corh, LINHA_CABECALHO_CORH, 12, "Valor");
   set(corh, LINHA_CABECALHO_CORH, 14, "Valor total do Contrato");
+  ocultarColuna(corh, 14); // O
+  ocultarColuna(corh, 15); // P
   estilizarCabecalho(corh, LINHA_CABECALHO_CORH);
   estilizarCabecalho(saldos, LINHA_INICIO_SALDOS - 1);
   estilizarCabecalho(log, 0);
@@ -108,5 +114,5 @@ function processar(wb) {
   return {inseridas,usados,nao,inconsistencias: XLSX.utils.sheet_to_json(log,{header:1}).length - 1};
 }
 async function executar() {
-  try { $("processar").disabled=true;$("status").textContent="Processando no seu navegador…";const dados=await arquivo.arrayBuffer(),wb=XLSX.read(dados,{type:"array",cellStyles:true});const resultado=processar(wb);const avisoLog=resultado.inconsistencias>0?` Foram encontradas ${resultado.inconsistencias} inconsistência(s); consulte a aba LOG do arquivo baixado.`:" Nenhuma inconsistência foi registrada na aba LOG.";$("status").textContent=`Concluído: ${resultado.inseridas} linha(s) inserida(s), ${resultado.usados} empenho(s) usado(s), ${resultado.nao} ocorrência(s) sem correspondência.${avisoLog} Selecione outro arquivo para iniciar um novo ciclo.`;const nome=arquivo.name.replace(/\.xlsx$/i,"")+"_processado.xlsx";XLSX.writeFile(wb,nome,{cellStyles:true});} catch(e) { console.error(e);$("status").textContent=`Erro: ${e.message}`;} finally { arquivo = undefined; $("arquivo").value = ""; $("nomeArquivo").textContent = "Selecionar planilha Excel (.xlsx)"; $("processar").disabled = true; }
+  try { $("processar").disabled=true;$("status").textContent="Processando no seu navegador…";const dados=await arquivo.arrayBuffer(),wb=XLSX.read(dados,{type:"array",cellStyles:true});const resultado=processar(wb);const avisoLog=resultado.inconsistencias>0?` Foram encontradas ${resultado.inconsistencias} inconsistência(s); consulte a aba LOG do arquivo baixado.`:" Nenhuma inconsistência foi registrada na aba LOG.";const avisoColunas=" Para consultar o Valor total do Contrato e o saldo remanescente da Nota de Empenho, reexiba as colunas O e P no arquivo baixado.";$("status").textContent=`Concluído: ${resultado.inseridas} linha(s) inserida(s), ${resultado.usados} empenho(s) usado(s), ${resultado.nao} ocorrência(s) sem correspondência.${avisoLog}${avisoColunas} Selecione outro arquivo para iniciar um novo ciclo.`;const nome=arquivo.name.replace(/\.xlsx$/i,"")+"_processado.xlsx";XLSX.writeFile(wb,nome,{cellStyles:true});} catch(e) { console.error(e);$("status").textContent=`Erro: ${e.message}`;} finally { arquivo = undefined; $("arquivo").value = ""; $("nomeArquivo").textContent = "Selecionar planilha Excel (.xlsx)"; $("processar").disabled = true; }
 }
