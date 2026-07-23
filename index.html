@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Processador de Empenhos</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  </head>
+  <body>
+    <main class="card">
+      <span class="eyebrow">MINISTÉRIO DAS CIDADES</span>
+      <h1>Processador de Empenhos</h1>
+      <p class="lead">Envie a planilha, processe os empenhos e baixe uma cópia pronta. O arquivo é tratado somente neste navegador — não é enviado para nenhum servidor.</p>
+
+      <label class="upload" for="arquivo">
+        <input id="arquivo" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+        <span id="nomeArquivo">Selecionar planilha Excel (.xlsx)</span>
+        <small>São necessárias as abas “ajustada CORH” e “SALDOS DE EMPENHO”.</small>
+      </label>
+
+      <div class="actions">
+        <button id="processar" class="primary" disabled>Processar empenhos</button>
+        <button id="resetar" disabled>Resetar processamento</button>
+      </div>
+      <p id="status" class="status" aria-live="polite">Selecione uma planilha para começar.</p>
+
+      <details>
+        <summary>O que o processamento faz?</summary>
+        <ul>
+          <li>Relaciona contrato e município, sem diferença de acentos, hífen ou maiúsculas.</li>
+          <li>Prioriza empenhos de 2025 e depois os de 2026.</li>
+          <li>Cria a aba LOG para casos sem correspondência ou com saldo insuficiente.</li>
+          <li>O reset remove as linhas adicionadas e as colunas O:Q, como no VBA original.</li>
+        </ul>
+      </details>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>
