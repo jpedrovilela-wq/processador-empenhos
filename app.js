@@ -22,7 +22,7 @@ function num(v) {
 function anoNota(nota) { const a = nota.length >= 15 ? Number(nota.slice(11, 15)) : 2020; return a >= 2000 && a <= 2100 ? a : 2020; }
 function cell(ws, r, c) { return ws[XLSX.utils.encode_cell({r, c})]; }
 function valor(ws, r, c) { return cell(ws, r, c)?.v; }
-function set(ws, r, c, v, fmt) { const a = XLSX.utils.encode_cell({r, c}); ws[a] = { ...(ws[a] || {}), t: typeof v === "number" ? "n" : "s", v }; if (fmt) ws[a].z = fmt; }
+function set(ws, r, c, v, fmt) { const a = XLSX.utils.encode_cell({r, c}); ws[a] = { ...(ws[a] || {}), t: typeof v === "number" ? "n" : "s", v }; if (fmt) ws[a].z = fmt; expandir(ws, r, c); }
 function ref(ws) { return XLSX.utils.decode_range(ws["!ref"] || "A1:A1"); }
 function expandir(ws, r, c) { const x = ref(ws); x.e.r = Math.max(x.e.r, r); x.e.c = Math.max(x.e.c, c); ws["!ref"] = XLSX.utils.encode_range(x); }
 function clonar(obj) { return obj ? JSON.parse(JSON.stringify(obj)) : undefined; }
@@ -65,6 +65,26 @@ function copiarLinha(ws, origem, destino) {
     if (ws[de]) ws[para] = clonar(ws[de]); else delete ws[para];
   }
 }
+function trocarColunas(ws, colunaA, colunaB) {
+  const area = ref(ws);
+  for (let r = 0; r <= area.e.r; r++) {
+    const a = XLSX.utils.encode_cell({ r, c: colunaA }), b = XLSX.utils.encode_cell({ r, c: colunaB });
+    const temporario = clonar(ws[a]);
+    if (ws[b]) ws[a] = clonar(ws[b]); else delete ws[a];
+    if (temporario) ws[b] = temporario; else delete ws[b];
+  }
+  if (ws["!cols"]) [ws["!cols"][colunaA], ws["!cols"][colunaB]] = [ws["!cols"][colunaB], ws["!cols"][colunaA]];
+}
+function removerColuna(ws, coluna) {
+  const area = ref(ws);
+  for (let r = 0; r <= area.e.r; r++) for (let c = coluna; c < area.e.c; c++) {
+    const origem = XLSX.utils.encode_cell({ r, c: c + 1 }), destino = XLSX.utils.encode_cell({ r, c });
+    if (ws[origem]) ws[destino] = clonar(ws[origem]); else delete ws[destino];
+  }
+  for (let r = 0; r <= area.e.r; r++) delete ws[XLSX.utils.encode_cell({ r, c: area.e.c })];
+  if (ws["!cols"]) ws["!cols"].splice(coluna, 1);
+  area.e.c--; ws["!ref"] = XLSX.utils.encode_range(area);
+}
 function preencher(ws, r, ate, cor) { for (let c = 0; c <= ate; c++) { const x = cell(ws,r,c) || (ws[XLSX.utils.encode_cell({r,c})] = {t:"s",v:""}); x.s = {...(x.s||{}), fill:{patternType:"solid",fgColor:{rgb:cor}}}; } }
 
 function processar(wb) {
@@ -79,6 +99,11 @@ function processar(wb) {
     for(const e of candidatos){if(restante<=.00001)break; const saldo=restantes.has(e.nota)?restantes.get(e.nota):e.saldo;if(saldo<=0)continue;const usar=Math.min(restante,saldo);if(alocou){dest++;copiarLinha(corh,r,dest);inseridas++;set(corh,r,16,"");set(corh,dest,16,MARCADOR);}set(corh,dest,7,e.nota.slice(11));set(corh,dest,9,e.fonte);set(corh,dest,11,e.ano>=2026?3:2);set(corh,dest,14,usar,"#,##0.00");set(corh,dest,15,saldo-usar,"#,##0.00");restantes.set(e.nota,saldo-usar);restante-=usar;usados++;alocou=true;}
     if(alocou&&restante>.01){preencher(corh,r,15,"FFC864");XLSX.utils.sheet_add_aoa(log,[[r+1,contrato,municipio,restante,"Saldo insuficiente"]],{origin:-1});}
   }
+  // Q é um controle temporário de linhas inseridas. Ele não integra o arquivo final.
+  trocarColunas(corh, 12, 14); // M <-> O
+  removerColuna(corh, 16); // excluir Q
+  set(corh, LINHA_CABECALHO_CORH, 12, "Valor");
+  set(corh, LINHA_CABECALHO_CORH, 14, "Valor total do Contrato");
   estilizarCabecalho(corh, LINHA_CABECALHO_CORH);
   estilizarCabecalho(saldos, LINHA_INICIO_SALDOS - 1);
   estilizarCabecalho(log, 0);
