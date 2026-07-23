@@ -19,7 +19,6 @@ function num(v) {
   if (s.includes(",") && s.includes(".")) s = s.replace(/\./g, "").replace(",", "."); else s = s.replace(",", ".");
   return Number(s) || 0;
 }
-function normalizar(v) { return txt(v).toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/-/g, " ").replace(/\s+/g, " ").trim(); }
 function anoNota(nota) { const a = nota.length >= 15 ? Number(nota.slice(11, 15)) : 2020; return a >= 2000 && a <= 2100 ? a : 2020; }
 function cell(ws, r, c) { return ws[XLSX.utils.encode_cell({r, c})]; }
 function valor(ws, r, c) { return cell(ws, r, c)?.v; }
@@ -74,9 +73,9 @@ function processar(wb) {
   [[14,"Saldo utilizado NE"],[15,"Saldo remanescente NE"],[16,"Controle Macro"]].forEach(([c,t]) => { if (!valor(corh,LINHA_CABECALHO_CORH,c)) set(corh,LINHA_CABECALHO_CORH,c,t); });
   const log = XLSX.utils.aoa_to_sheet([["Linha","Contrato","Município","Valor faltante","Motivo"]]); wb.Sheets.LOG = log; if (!wb.SheetNames.includes("LOG")) wb.SheetNames.push("LOG");
   const mapa = new Map(); const sr = ref(saldos);
-  for (let r=LINHA_INICIO_SALDOS;r<=sr.e.r;r++) { const contrato=txt(valor(saldos,r,0)), nota=txt(valor(saldos,r,8)); if(!contrato||!nota) continue; const saldoQ=num(valor(saldos,r,16)), saldoO=num(valor(saldos,r,14)), saldo=saldoQ>0?saldoQ:saldoO, ano=anoNota(nota); if(saldo<=0 || ![2025,2026].includes(ano))continue; const k=`${contrato}_${normalizar(valor(saldos,r,12))}`; if(!mapa.has(k))mapa.set(k,[]); mapa.get(k).push({nota,fonte:txt(valor(saldos,r,6)),saldo,ano}); }
+  for (let r=LINHA_INICIO_SALDOS;r<=sr.e.r;r++) { const contrato=txt(valor(saldos,r,0)), nota=txt(valor(saldos,r,8)); if(!contrato||!nota) continue; const saldoQ=num(valor(saldos,r,16)), saldoO=num(valor(saldos,r,14)), saldo=saldoQ>0?saldoQ:saldoO, ano=anoNota(nota); if(saldo<=0 || ![2025,2026].includes(ano))continue; if(!mapa.has(contrato))mapa.set(contrato,[]); mapa.get(contrato).push({nota,fonte:txt(valor(saldos,r,6)),saldo,ano}); }
   mapa.forEach(x=>x.sort((a,b)=>a.ano-b.ano)); const restantes=new Map(); let inseridas=0, usados=0, nao=0;
-  for(let r=ref(corh).e.r;r>=LINHA_INICIO_CORH;r--) { const contrato=txt(valor(corh,r,0)); if(!contrato||txt(valor(corh,r,7)))continue; const municipio=txt(valor(corh,r,2)), total=num(valor(corh,r,12)); if(total<=0)continue; const candidatos=mapa.get(`${contrato}_${normalizar(municipio)}`); if(!candidatos){preencher(corh,r,15,"FFFF00"); XLSX.utils.sheet_add_aoa(log,[[r+1,contrato,municipio,total,"Contrato/Município não encontrado"]],{origin:-1});nao++;continue;} let restante=total, alocou=false, dest=r;
+  for(let r=ref(corh).e.r;r>=LINHA_INICIO_CORH;r--) { const contrato=txt(valor(corh,r,0)); if(!contrato||txt(valor(corh,r,7)))continue; const municipio=txt(valor(corh,r,2)), total=num(valor(corh,r,12)); if(total<=0)continue; const candidatos=mapa.get(contrato); if(!candidatos){preencher(corh,r,15,"FFFF00"); XLSX.utils.sheet_add_aoa(log,[[r+1,contrato,municipio,total,"Contrato não encontrado"]],{origin:-1});nao++;continue;} let restante=total, alocou=false, dest=r;
     for(const e of candidatos){if(restante<=.00001)break; const saldo=restantes.has(e.nota)?restantes.get(e.nota):e.saldo;if(saldo<=0)continue;const usar=Math.min(restante,saldo);if(alocou){dest++;copiarLinha(corh,r,dest);inseridas++;set(corh,r,16,"");set(corh,dest,16,MARCADOR);}set(corh,dest,7,e.nota.slice(11));set(corh,dest,9,e.fonte);set(corh,dest,11,e.ano>=2026?3:2);set(corh,dest,14,usar,"#,##0.00");set(corh,dest,15,saldo-usar,"#,##0.00");restantes.set(e.nota,saldo-usar);restante-=usar;usados++;alocou=true;}
     if(alocou&&restante>.01){preencher(corh,r,15,"FFC864");XLSX.utils.sheet_add_aoa(log,[[r+1,contrato,municipio,restante,"Saldo insuficiente"]],{origin:-1});}
   }
