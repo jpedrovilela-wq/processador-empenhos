@@ -75,15 +75,11 @@ function trocarColunas(ws, colunaA, colunaB) {
   }
   if (ws["!cols"]) [ws["!cols"][colunaA], ws["!cols"][colunaB]] = [ws["!cols"][colunaB], ws["!cols"][colunaA]];
 }
-function removerColuna(ws, coluna) {
+function limparEOcultarColuna(ws, coluna) {
   const area = ref(ws);
-  for (let r = 0; r <= area.e.r; r++) for (let c = coluna; c < area.e.c; c++) {
-    const origem = XLSX.utils.encode_cell({ r, c: c + 1 }), destino = XLSX.utils.encode_cell({ r, c });
-    if (ws[origem]) ws[destino] = clonar(ws[origem]); else delete ws[destino];
-  }
-  for (let r = 0; r <= area.e.r; r++) delete ws[XLSX.utils.encode_cell({ r, c: area.e.c })];
-  if (ws["!cols"]) ws["!cols"].splice(coluna, 1);
-  area.e.c--; ws["!ref"] = XLSX.utils.encode_range(area);
+  for (let r = 0; r <= area.e.r; r++) delete ws[XLSX.utils.encode_cell({ r, c: coluna })];
+  if (!ws["!cols"]) ws["!cols"] = [];
+  ws["!cols"][coluna] = { ...(ws["!cols"][coluna] || {}), hidden: true };
 }
 function preencher(ws, r, ate, cor) { for (let c = 0; c <= ate; c++) { const x = cell(ws,r,c) || (ws[XLSX.utils.encode_cell({r,c})] = {t:"s",v:""}); x.s = {...(x.s||{}), fill:{patternType:"solid",fgColor:{rgb:cor}}}; } }
 
@@ -99,9 +95,10 @@ function processar(wb) {
     for(const e of candidatos){if(restante<=.00001)break; const saldo=restantes.has(e.nota)?restantes.get(e.nota):e.saldo;if(saldo<=0)continue;const usar=Math.min(restante,saldo);if(alocou){dest++;copiarLinha(corh,r,dest);inseridas++;set(corh,r,16,"");set(corh,dest,16,MARCADOR);}set(corh,dest,7,e.nota.slice(11));set(corh,dest,9,e.fonte);set(corh,dest,11,e.ano>=2026?3:2);set(corh,dest,14,usar,"#,##0.00");set(corh,dest,15,saldo-usar,"#,##0.00");restantes.set(e.nota,saldo-usar);restante-=usar;usados++;alocou=true;}
     if(alocou&&restante>.01){preencher(corh,r,15,"FFC864");XLSX.utils.sheet_add_aoa(log,[[r+1,contrato,municipio,restante,"Saldo insuficiente"]],{origin:-1});}
   }
-  // Q é um controle temporário de linhas inseridas. Ele não integra o arquivo final.
-  trocarColunas(corh, 12, 14); // M <-> O
-  removerColuna(corh, 16); // excluir Q
+  // M recebe o Valor distribuído (antiga O) e O conserva o valor original da M.
+  trocarColunas(corh, 12, 14);
+  // Q é apenas controle interno: o conteúdo é removido e a coluna fica oculta no arquivo final.
+  limparEOcultarColuna(corh, 16);
   set(corh, LINHA_CABECALHO_CORH, 12, "Valor");
   set(corh, LINHA_CABECALHO_CORH, 14, "Valor total do Contrato");
   estilizarCabecalho(corh, LINHA_CABECALHO_CORH);
